@@ -47,7 +47,7 @@ to _inw_ will be passed to _inotifywait_.
 
 # BUGS
 
-Probably. Please report them to the [GitHub issue tracker](https://github.com/yath/android/issues),
+Probably. Please report them to the [GitHub issue tracker](https://github.com/yath/inw/issues),
 preferably with pull request :-).
 
 # COPYRIGHT & LICENSE

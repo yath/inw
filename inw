@@ -185,7 +185,7 @@ writes. Might be useful from within L<incron|http://inotify.aiken.cz/?section=in
 
 =head1 BUGS
 
-Probably. Please report them to the L<GitHub issue tracker|https://github.com/yath/android/issues>,
+Probably. Please report them to the L<GitHub issue tracker|https://github.com/yath/inw/issues>,
 preferably with pull request :-).
 
 =head1 COPYRIGHT & LICENSE
