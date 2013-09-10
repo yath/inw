@@ -80,7 +80,6 @@ sub exit_msg {
 
 # parse and check arguments
 get_args;
-use Data::Dumper; print Dumper \%opts;
 my $t = $opts{T};
 die "-T requires a numeric argument\n" if $t && $t !~ /^[0-9]+$/;
 my $m = $opts{M};
