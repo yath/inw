@@ -1,6 +1,6 @@
 =head1 NAME
 
-inw -- inotifywait(1) wrapper
+inw - inotifywait wrapper
 
 =head1 SYNOPSIS
 
@@ -56,10 +56,10 @@ preferably with pull request :-).
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2013 Sebastian Schmidt <yath@yath.de>.
+Copyright 2013 Sebastian Schmidt <L<yath@yath.de|mailto:yath@yath.de>>.
 
 This program is free software; you can redistribute it and/or modify it under the terms of
-the GNU General Public License version 2 (B<not> "any later" and B<no> different version) as
+the GNU General Public License version 2 (B<not> “any later” and B<no> different version) as
 published by the Free Software Foundation.
 
 =cut
