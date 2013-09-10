@@ -105,10 +105,9 @@ sub exit_t {
 # alarm handler for timeout because -M was reached
 sub exit_m {
     exit_msg("timeout after $m seconds");
-    exit 0;
 }
 
-LOOP: while (1) {
+while (1) {
     # default case: timeout because -T timeout is reached
     my $exitin = $t;
     $SIG{ALRM} = \&exit_t;
