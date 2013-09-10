@@ -1,0 +1,199 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use constant INW => "inotifywait";
+use POSIX qw(WIFEXITED WEXITSTATUS);
+
+my %opts;
+
+# strip arguments out of @ARGV
+sub get_args {
+    my $optchars = qr/[TMNV]/;
+    my $noarg = qr/[NV]/; # options that don't require an argument
+
+    my $nargs = $#ARGV;
+    for (my $i = 0; $i <= $nargs; $i++) {
+        if ($ARGV[$i] =~ /^-($optchars)(.*)/) {
+            my $opt = $1;
+            my $optarg = do {
+                if ($opt =~ $noarg) {
+                    die "Option -$opt must not be followed by an argument" if $2;
+                    1;
+                } elsif ($2) {
+                    $2
+                } elsif ($i < $nargs) {
+                    $nargs--;
+                    splice(@ARGV, $i+1, 1)
+                } else {
+                    die "Option -$opt requires an argument\n";
+                }
+            };
+            $opts{$opt} = $optarg;
+            $nargs--;
+            splice(@ARGV, $i, 1);
+            $i--; # we have spliced the current argument from
+                  # @ARGV, so re-check the new one at $i
+        }
+    }
+}
+
+# print a message if -V is passed
+sub msg {
+    return unless $opts{V};
+    print STDERR @_, "\n";
+}
+
+# calls inotifywait, saves the pid of the running process in $pid and
+# exits with the return code of inotifywait, if nonzero
+my $pid;
+sub call_inw {
+    msg("calling ".INW. " @_");
+    unless ($pid = fork) {
+        # child
+        exec(INW, @_);
+    } else {
+        # parent
+        wait;
+        $pid = undef;
+        if ($?) {
+            die "child exited with \$? = $?\n" unless WIFEXITED($?);
+            exit WEXITSTATUS($?);
+        }
+    }
+}
+
+# kill inotifywait child if running
+END {
+    if ($pid) {
+        msg("killing ".INW." with pid $pid");
+        kill "TERM", $pid;
+    }
+}
+
+# exit with a message
+sub exit_msg {
+    msg(@_);
+    exit 0;
+}
+
+#######################################################################
+
+# parse and check arguments
+get_args;
+use Data::Dumper; print Dumper \%opts;
+my $t = $opts{T};
+die "-T requires a numeric argument\n" if $t && $t !~ /^[0-9]+$/;
+my $m = $opts{M};
+die "-M requires a numeric argument\n" if $m && $m !~ /^[0-9]+$/;
+die "-M makes no sense without -T\n" if $m && !$t;
+die "-M must not be smaller than or equal to -T\n" if $t && $m && ($m <= $t);
+die "-N makes no sense without -T" if $opts{n} && !$t;
+
+# call inotifywait for the first time
+call_inw(@ARGV) unless $opts{N};
+
+# if no -T was given we don't need to do anything
+exit 0 unless $t;
+
+my $exitat = $m && time+$m;
+
+# alarm handler for timeout because -T was reached
+sub exit_t {
+    exit_msg("$t seconds after last notify");
+}
+
+# alarm handler for timeout because -M was reached
+sub exit_m {
+    exit_msg("timeout after $m seconds");
+    exit 0;
+}
+
+LOOP: while (1) {
+    # default case: timeout because -T timeout is reached
+    my $exitin = $t;
+    $SIG{ALRM} = \&exit_t;
+
+    if ($exitat) { # -M given?
+        my $togo = $exitat-time; # yes, we may run for $togo seconds from now
+        if ($togo > 0 && $togo < $exitin) {
+            # ... that's less than for -T, change the alarm timeout and handler
+            $exitin = $togo;
+            $SIG{ALRM} = \&exit_m;
+        } elsif ($togo <= 0) {
+            # timed out already
+            exit_m;
+        }
+    }
+
+    alarm $exitin;
+    call_inw(@ARGV);
+}
+
+die "unreachable";
+
+
+=head1 NAME
+
+inw -- inotifywait(1) wrapper
+
+=head1 SYNOPSIS
+
+inw [options and inotifywait arguments]
+
+=head1 DESCRIPTION
+
+I<inw> is a wrapper for I<inotifywait> (from L<inotify-tools|https://github.com/rvoicilas/inotify-tools/wiki>)
+that waits for a given time after a file change for additional changes and returns if no changes
+have been made for a specific amount of time.
+
+This might be useful if you trigger e.g. L<unison|http://www.cis.upenn.edu/~bcpierce/unison/> from a shell
+script or incrond but don't want to synchronize on B<every> change but rather when nothing has been
+written for like 5 seconds.
+
+=head1 OPTIONS
+
+=head2 NOTE
+
+Options can't be be bundled, that is, you can't write I<-ABC 123> for I<-A -B -C 123>. I<-ABC> would
+be recogized as I<-A BC>, that is I<BC> being an argument to I<-A>.
+
+You can mix I<inw> options and I<inotifywait> arguments on the command line; everything unknown
+to I<inw> will be passed to I<inotifywait>.
+
+=over 4
+
+=item B<-T I<NUM>>
+
+Wait I<NUM> seconds after the last change to a file for other changes before returning.
+
+=item B<-M I<NUM>>
+
+Exit after I<NUM> seconds after the first change to a file, regardless of B<-T>. This is
+an overall timeout to prevent I<inw> from never returning if something changes a file
+continuously.
+
+=item B<-V>
+
+Be verbose.
+
+=item B<-N>
+
+Assume the first change to a file has already been done; just watch out for subsequent
+writes. Might be useful from within L<incron|http://inotify.aiken.cz/?section=incron&page=about&lang=en>.
+
+=back
+
+=head1 BUGS
+
+Probably. Please report them to the L<GitHub issue tracker|https://github.com/yath/android/issues>,
+preferably with pull request :-).
+
+=head1 COPYRIGHT & LICENSE
+
+Copyright 2013 Sebastian Schmidt <yath@yath.de>.
+
+This program is free software; you can redistribute it and/or modify it under the terms of
+the GNU General Public License version 2 (B<not> "any later" and B<no> different version) as
+published by the Free Software Foundation.
+
+=cut
