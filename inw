@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 use constant INW => "inotifywait";
-use POSIX qw(WIFEXITED WEXITSTATUS);
+use POSIX qw(:sys_wait_h);
 
 my %opts;
 
@@ -55,9 +55,16 @@ sub call_inw {
         # parent
         wait;
         $pid = undef;
-        if ($?) {
-            die "child exited with \$? = $?\n" unless WIFEXITED($?);
-            exit WEXITSTATUS($?);
+        my $rc = ${^CHILD_ERROR_NATIVE};
+        if ($rc) {
+            if (WIFEXITED($rc)) {
+                exit WEXITSTATUS($rc);
+            } elsif (WIFSIGNALED($rc)) {
+                die "child killed by signal ".WTERMSIG($rc)."\n";
+            } else {
+                die "child exited with \$rc = $rc\n";
+            }
+            die "unreachable";
         }
     }
 }
