@@ -50,7 +50,7 @@ sub call_inw {
     msg("calling ".INW. " @_");
     unless ($pid = fork) {
         # child
-        exec(INW, @_);
+        exec(INW, @_) or die $!;
     } else {
         # parent
         wait;
